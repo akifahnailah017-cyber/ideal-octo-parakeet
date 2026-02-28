@@ -1,0 +1,90 @@
+import streamlit as st
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.linear_model import LinearRegression
+from sklearn.cluster import KMeans
+import seaborn as sns
+
+st.set_page_config(layout="wide")
+st.title("📊 Dashboard Analisis Hasil Simulasi Siswa")
+
+uploaded_file = st.file_uploader("Upload file Excel", type=["xlsx"])
+
+if uploaded_file is not None:
+    
+    df = pd.read_excel(uploaded_file)
+    
+    # =====================
+    # TOTAL & RATA-RATA
+    # =====================
+    rata_skor = df.mean().mean()
+    total_responden = len(df)
+    
+    if rata_skor >= 3:
+        kategori = "Baik"
+    elif rata_skor >= 2:
+        kategori = "Cukup"
+    else:
+        kategori = "Kurang"
+    
+    col1, col2, col3 = st.columns(3)
+    col1.metric("📈 Rata-rata Skor", round(rata_skor,2))
+    col2.metric("🏷️ Kategori", kategori)
+    col3.metric("👥 Total Responden", total_responden)
+    
+    # =====================
+    # ANALISIS GAP
+    # =====================
+    st.subheader("🎯 Analisis GAP per Soal")
+    rata_per_soal = df.mean()
+    gap = 4 - rata_per_soal
+    prioritas = gap.idxmax()
+    
+    st.write(f"📌 Prioritas Perbaikan: Fokus pada {prioritas}")
+    
+    fig1, ax1 = plt.subplots()
+    ax1.bar(gap.index, gap.values)
+    plt.xticks(rotation=90)
+    st.pyplot(fig1)
+    
+    # =====================
+    # HEATMAP KORELASI
+    # =====================
+    st.subheader("🔗 Peta Panas Korelasi Antar Soal")
+    corr = df.corr()
+    fig2, ax2 = plt.subplots(figsize=(10,6))
+    sns.heatmap(corr, cmap="coolwarm")
+    st.pyplot(fig2)
+    
+    # =====================
+    # REGRESI LINIER
+    # =====================
+    st.subheader("⚖️ Analisis Regresi Linier")
+    
+    X = df.iloc[:, :-1]
+    y = df.iloc[:, -1]
+    
+    model = LinearRegression()
+    model.fit(X, y)
+    
+    r_squared = model.score(X, y)
+    st.write(f"📊 Nilai R-Squared: {round(r_squared,3)}")
+    
+    coef = pd.Series(model.coef_, index=X.columns)
+    top5 = coef.abs().sort_values(ascending=False).head(5)
+    
+    st.subheader("🔝 5 Faktor Paling Berpengaruh")
+    st.dataframe(top5)
+    
+    # =====================
+    # SEGMENTASI SISWA
+    # =====================
+    st.subheader("👥 Segmentasi Kemampuan Siswa")
+    
+    kmeans = KMeans(n_clusters=3, random_state=0)
+    df["Cluster"] = kmeans.fit_predict(df)
+    
+    st.dataframe(df["Cluster"].value_counts())
+    
+    st.success("✅ Dashboard siap digunakan!")
